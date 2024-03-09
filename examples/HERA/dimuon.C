@@ -2,17 +2,62 @@
 // ***************************** exclusive production of dimuons ******************************
 //
 
+
+// Stdlib header file for input and output
+#include <iostream>
+#include <fstream>
+#include <cmath>
+#include <cstdlib>
+
+
+// include statements for all needed dependencies
+#include "TH1F.h"
+#include "TTree.h"
+#include "TROOT.h"
+#include "TFile.h"
+#include "TTree.h"
+#include "TBrowser.h"
+#include "TH2.h"
+#include "TRandom.h"
+#include "TLorentzVector.h"
+#include "TCanvas.h"
+#include "TF1.h"
+#include "TH1D.h"
+#include "TVirtualFitter.h"
+#include "TMath.h"
+#include "stdlib.h"
+#include "math.h"
+#include "TPaveText.h"
+#include <string>
+#include <vector>
+#include "TVirtualFitter.h"
+#include "TBranch.h"
+#include <fstream>
+#include <iomanip>
+#include <algorithm>
+#include <cmath>
+#include "TGraph.h"
+#include "TFrame.h"
+#include "TAttFill.h"
+#include "TNamed.h"
+#include "TStyle.h"
+#include "TCanvas.h"
+#include "TROOT.h"
+#include "TRandom3.h"
+#include "THStack.h"
+#include "TLegend.h"
+#include "TSystem.h"
+#include "TInterpreter.h"
+#include "Math/LorentzVector.h"
+
+
 #define dimuon_cxx
-
 #include "dimuon.h"
-#include <TH2.h>
-#include <TStyle.h>
-#include <TCanvas.h>
 
 
-TFile *target;
-TTree *Tsignal_LHeC = new TTree("LHeC_dimuon","LHeC_dimuon");
-TFile *F;
+    TFile *target;
+    TTree *Tsignal_LHeC = new TTree("LHeC_dimuon","LHeC_dimuon");
+    TFile *F;
 
 
 // **********************************************************************   
@@ -22,18 +67,30 @@ TFile *F;
     TH1 *histMassdilepton  =  new TH1F("M_{inv}", "",   30, 0.0, 10.0);
     TH1 *histPtdilepton    =  new TH1F("Ptll", "",      30, 0.0, 10.0);
     TH1 *histetall         =  new TH1F("etall", "",     30, -5.0, 5.0); 
+    TH1 *histYll           =  new TH1F("Yll", "",       30, -5.0, 5.0);
+    TH1 *histThetall       =  new TH1F("Thetall", "",   30, -5.0, 5.0);
 
 
-    TLorentzVector lepton1;      
-    TLorentzVector lepton2;    
+    TLorentzVector lepton1;
+    TLorentzVector lepton2;
+    TLorentzVector MydiLepton;
 
-    TLorentzVector MydiLepton; 
+    TLorentzVector lepton12;
+    TLorentzVector MydiLepton12;
+
+    vector <TLorentzVector> l1;
+    vector <TLorentzVector> l2;
+    vector <TLorentzVector> l1l2;
 
 
-    Float_t Mll   = 0.0;
-    Float_t Ptll  = 0.0;
-    Float_t Etall = 0.0;
-    
+    Float_t Mll     = 0.0;
+    Float_t Ptll    = 0.0;
+    Float_t Etall   = 0.0;
+    Float_t Yll     = 0.0;
+    Float_t Thetall = 0.0;
+
+    Float_t Mmu     = 105.66 * 1.0/1000.0;
+
 
 void dimuon::Loop()
 {
@@ -62,9 +119,16 @@ void dimuon::Loop()
 //by  b_branchname->GetEntry(ientry); //read only this branch
 
 
+    l1.clear();
+    l2.clear();
+    l1l2.clear();
+
+
     Tsignal_LHeC->Branch("Mll",&Mll);
     Tsignal_LHeC->Branch("Ptll",&Ptll);
     Tsignal_LHeC->Branch("Etall",&Etall);
+    Tsignal_LHeC->Branch("Yll",&Yll);
+    Tsignal_LHeC->Branch("Thetall",&Thetall);
 
 
     gStyle->SetOptStat(0);  
@@ -72,7 +136,9 @@ void dimuon::Loop()
     
  if (fChain == 0) return;
 
+
    Long64_t nentries = fChain->GetEntriesFast();
+
 
    Long64_t nbytes = 0, nb = 0;
    for (Long64_t jentry=0; jentry < nentries; jentry++) {
@@ -80,7 +146,6 @@ void dimuon::Loop()
       if (ientry < 0) break;
       nb = fChain->GetEntry(jentry);   nbytes += nb;
       // if (Cut(ientry) < 0) continue;
-
 
 
 //        cout << "npart = " << npart << endl; 
@@ -101,14 +166,58 @@ void dimuon::Loop()
 // 6 = muon   gamma gamma -> mu+ mu-   
 // 7 = muon   Second muon 
 // 8 = electron
-        
+
+
+
+      if (charge[5] == 1) {
 
   lepton1.SetPtEtaPhiE( pt[5], eta[5], phi[5], E[5] );
-  lepton2.SetPtEtaPhiE( pt[7], eta[7], phi[7], E[7] );
+      } else if (charge[7] == 1) {
+
+    lepton1.SetPtEtaPhiE( pt[7], eta[7], phi[7], E[7] );
+}
+
+      if (charge[5] == -1) {
+
+  lepton2.SetPtEtaPhiE( pt[5], eta[5], phi[5], E[5] );
+      } else if (charge[7] == -1) {
+
+    lepton2.SetPtEtaPhiE( pt[7], eta[7], phi[7], E[7] );
+}
 
 
-  MydiLepton = lepton1 + lepton2;  
-  
+
+  lepton12.SetPtEtaPhiE( pt[6], eta[6], phi[6], E[6] );
+
+
+
+//    lepton1.SetPtEtaPhiE( pt[5], eta[5], phi[5], E[5] );
+    l1.push_back(lepton1);
+
+//    lepton2.SetPtEtaPhiE( pt[7], eta[7], phi[7], E[7] );
+    l2.push_back(lepton2);
+
+
+
+//    MydiLepton   = lepton1  + lepton2;
+    MydiLepton   = lepton12;
+//    MydiLepton12 = lepton12;
+
+    l1l2.push_back(MydiLepton);
+
+
+//  cout << l1l2.size()  << endl;
+
+
+
+
+//for(unsigned int j=1; j<l1l2.size();j++)
+//      {
+//      cout << l1l2[j].Eta()  << endl;
+//      Etall = l1l2[j].Eta();
+//      }
+
+
 /*
 
   Mll   =  lepton1.M()   + lepton2.M();
@@ -117,10 +226,19 @@ void dimuon::Loop()
 
 */
 
+    Mll     =  MydiLepton.M();
+    Ptll    =  MydiLepton.Pt();
+    Etall   =  MydiLepton.Eta();
+    Thetall =  MydiLepton.Theta();
 
-    Mll   =  MydiLepton.M();
-    Ptll  =  MydiLepton.Pt();
-    Etall =  MydiLepton.Eta();
+
+//    Etall = -TMath::Log(TMath::Tan(Thetall / 2.0));
+
+    // Calculate rapidity using: y = 1/2 ln ( (E+Pz)/(E-Pz) )
+//    Yll = 1.0/2.0 * TMath::Log( (MydiLepton.E() + MydiLepton.Pz()) / (MydiLepton.E() - MydiLepton.Pz()) );
+
+    // Calculate rapidity using: y = Eta - cos(Theta)/2 (m/p_T)^2
+    Yll = Etall -  TMath::Cos(Thetall)/2.0 * (Mmu/Ptll)* (Mmu/Ptll);
 
 
 //  cout << " Mll   = "  << Mll << endl;
@@ -131,6 +249,8 @@ void dimuon::Loop()
     histMassdilepton->Fill(Mll);      
     histPtdilepton->Fill(Ptll);
     histetall->Fill(Etall);
+    histYll->Fill(Yll);
+    histThetall->Fill(Thetall);
 
       
     Tsignal_LHeC->Fill();
@@ -138,14 +258,15 @@ void dimuon::Loop()
 }
 
 
-     target = new TFile ("LHeC_dimuon.root","recreate");
-     target->cd();
+    target = new TFile ("LHeC_dimuon.root","recreate");
+    target->cd();
 
-     Tsignal_LHeC->Write();
-    
-     target->Close();
+    Tsignal_LHeC->Write();
+
+    target->Close();
 
      
+
 // =======================================================================
 // =======================================================================
 // =======================================================================
@@ -328,7 +449,7 @@ c2->SaveAs("Ptdilepton.pdf");
 TCanvas* c3 = new TCanvas("c3","etall", 10, 10, 900, 700);
 
 //histetall->SetTitle("Jet Algorithem = ee_genkt_cambridge"); t5a->Draw("same");
-histetall->GetXaxis()->SetTitle("#eta^{l}");
+histetall->GetXaxis()->SetTitle("#eta^{#mu^{+}#mu^{-}}");
 //histetall->GetXaxis()->SetTitleOffset(1.25);
 histetall->GetXaxis()->SetLabelFont(22);
 histetall->GetXaxis()->SetTitleFont(22);
@@ -370,6 +491,115 @@ c3->SaveAs("NPART-6-etal.pdf");
 //c3->SaveAs("etal.eps");
 //c3->SaveAs("etal.root");
 //c3->SaveAs("etal.jpg");
+
+
+
+
+// =======================================================================
+
+
+
+TCanvas* c4 = new TCanvas("c4","Yll", 10, 10, 900, 700);
+
+//histYll->SetTitle("Jet Algorithem = ee_genkt_cambridge"); t5a->Draw("same");
+histYll->GetXaxis()->SetTitle("Y^{#mu^{+}#mu^{-}}");
+//histYll->GetXaxis()->SetTitleOffset(1.25);
+histYll->GetXaxis()->SetLabelFont(22);
+histYll->GetXaxis()->SetTitleFont(22);
+histYll->GetYaxis()->SetTitle("# Events");
+histYll->GetYaxis()->SetTitleOffset(1.40);
+histYll->GetYaxis()->SetLabelFont(22);
+histYll->GetYaxis()->SetTitleFont(22);
+
+//histYll->GetYaxis()->SetRangeUser(1,100);
+
+
+ cout<<"Integral(Yl) ="<<histYll->Integral()<<endl;
+
+   // histYll->SetFillStyle(3001);
+//    histYll->SetFillColor(kGreen+1);
+    histYll->SetLineWidth(3);
+    histYll->SetLineColor(kBlue+1);
+
+//    histYll->Draw("hist");
+    histYll->Draw("hist");
+
+
+ leg->Draw("same");
+ t2a->Draw("same");
+// t3a->Draw("same");
+// t4a->Draw("same");
+// t5a->Draw("same");
+// t6a->Draw("same");
+// t2b->Draw("same");
+// t3b->Draw("same");
+// t4b->Draw("same");
+// t5b->Draw("same");
+
+// c4->SetLogy(1);
+
+
+c4->SaveAs("NPART-6-Yll.pdf");
+//c4->SaveAs("Yll.C");
+//c4->SaveAs("Yll.eps");
+//c4->SaveAs("Yll.root");
+//c4->SaveAs("Yll.jpg");
+
+
+
+
+
+// =======================================================================
+
+
+
+TCanvas* c5 = new TCanvas("c5","Thetall", 10, 10, 900, 700);
+
+//histThetall->SetTitle("Jet Algorithem = ee_genkt_cambridge"); t5a->Draw("same");
+histThetall->GetXaxis()->SetTitle("#theta^{#mu^{+}#mu^{-}}");
+//histThetall->GetXaxis()->SetTitleOffset(1.25);
+histThetall->GetXaxis()->SetLabelFont(22);
+histThetall->GetXaxis()->SetTitleFont(22);
+histThetall->GetYaxis()->SetTitle("# Events");
+histThetall->GetYaxis()->SetTitleOffset(1.40);
+histThetall->GetYaxis()->SetLabelFont(22);
+histThetall->GetYaxis()->SetTitleFont(22);
+
+//histThetall->GetYaxis()->SetRangeUser(1,100);
+
+
+ cout<<"Integral(Yl) ="<<histThetall->Integral()<<endl;
+
+   // histThetall->SetFillStyle(3001);
+//    histThetall->SetFillColor(kGreen+1);
+    histThetall->SetLineWidth(3);
+    histThetall->SetLineColor(kBlue+1);
+
+//    histThetall->Draw("hist");
+    histThetall->Draw("hist");
+
+
+ leg->Draw("same");
+ t2a->Draw("same");
+// t3a->Draw("same");
+// t4a->Draw("same");
+// t5a->Draw("same");
+// t6a->Draw("same");
+// t2b->Draw("same");
+// t3b->Draw("same");
+// t4b->Draw("same");
+// t5b->Draw("same");
+
+// c5->SetLogy(1);
+
+
+c5->SaveAs("NPART-6-Thetall.pdf");
+//c5->SaveAs("Thetall.C");
+//c5->SaveAs("Thetall.eps");
+//c5->SaveAs("Thetall.root");
+//c5->SaveAs("Thetall.jpg");
+
+
 
 
 
